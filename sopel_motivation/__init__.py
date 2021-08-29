@@ -72,6 +72,11 @@ def motivate_me(bot, trigger):
         bot.reply("Malformed API response. Try again later.")
         return plugin.NOLIMIT
 
+    if type(data) == list and len(data) == 1:
+        # minimize likelihood of needing full-on JMESPath expressions
+        # for APIs that return only one result, but wrap it in a list anyway
+        data = data[0]
+
     if jmespath:
         quote = bot.memory['motivation']['quote'].search(data)
         author = bot.memory['motivation']['author'].search(data)

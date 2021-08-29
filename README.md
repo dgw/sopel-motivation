@@ -22,6 +22,11 @@ point it elsewhere for a source of quotes:
 - `quote_key`: name of the dictionary key containing the quote text
 - `author_key`: name of the dictionary key containing who said/wrote the quote
 
+### Convenience features
+
+Fetched JSON that contains a one-item list will be flattened to just the item
+itself, so using JMESPath (see below) won't be needed as often.
+
 ### JMESPath support
 
 Installing `sopel-motivation` with the `jmespath` extra (e.g. `pip install
