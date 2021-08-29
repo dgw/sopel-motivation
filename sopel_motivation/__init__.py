@@ -37,7 +37,7 @@ def motivate_me(bot, trigger):
     try:
         r = requests.get(bot.config.motivation.endpoint)
         r.raise_for_status()
-    except (requests.RequestException, HTTPError):
+    except requests.RequestException:
         bot.reply("Couldn't contact the quote service. Please try again later.")
         return plugin.NOLIMIT
 
