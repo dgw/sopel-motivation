@@ -31,7 +31,6 @@ itself, so using JMESPath (see below) won't be needed as often.
 
 Installing `sopel-motivation` with the `jmespath` extra (e.g. `pip install
 sopel-motivation[jmespath]`) enables [JMESPath](https://jmespath.org/) support
-in the `quote_key` and `author_key` configuration values, which may be needed
-for some alternate APIs that don't return a flat, one-level dictionary. See
-the JMESPath documentation for how to construct a query matching your chosen
-API's output.
+in the `quote_key` and `author_key` configuration values, which might be
+needed for alternate APIs that return more complex data structures. See the
+JMESPath documentation for how to construct a query for your chosen API.
