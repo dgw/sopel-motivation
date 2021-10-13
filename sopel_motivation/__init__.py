@@ -7,9 +7,15 @@ from __future__ import unicode_literals, absolute_import, division, print_functi
 
 import requests
 
-from sopel import plugin
+from sopel import plugin, tools
 from sopel.config import ConfigurationError
 from sopel.config.types import StaticSection, ValidatedAttribute
+
+
+try:
+    import jmespath
+except ImportError:
+    jmespath = None
 
 
 class MotivationSection(StaticSection):
@@ -17,17 +23,34 @@ class MotivationSection(StaticSection):
     """API endpoint returning quotes in JSON format."""
 
     quote_key = ValidatedAttribute('quote_key', default='text')
-    """JSON key containing quote text."""
+    """JSON key or JMESPath expression containing quote text."""
 
     author_key = ValidatedAttribute('author_key', default='by')
-    """JSON key containing author's name/attribution."""
+    """JSON key or JMESPath expression containing author's name/attribution."""
 
 
 def setup(bot):
     bot.config.define_section('motivation', MotivationSection)
 
     if not bot.config.motivation.endpoint:
-        raise Exception('Empty API endpoint setting.')
+        # can happen if an empty value is left in the config file
+        raise ConfigurationError('Empty API endpoint setting.')
+
+    if jmespath:
+        bot.memory['motivation'] = tools.SopelMemory()
+        try:
+            bot.memory['motivation']['quote'] = jmespath.compile(bot.config.motivation.quote_key)
+            bot.memory['motivation']['author'] = jmespath.compile(bot.config.motivation.author_key)
+        except jmespath.exceptions.JMESPathError:
+            del bot.memory['motivation']
+            raise ConfigurationError('Invalid JMESPath expression in config')
+
+
+def shutdown(bot):
+    try:
+        del bot.memory['motivation']
+    except KeyError:
+        pass
 
 
 @plugin.commands('motivate', 'mq')
@@ -41,18 +64,32 @@ def motivate_me(bot, trigger):
         bot.reply("Couldn't contact the quote service. Please try again later.")
         return plugin.NOLIMIT
 
-    # assume success
+    # assume request succeeded
     try:
         data = r.json()
-        data[bot.config.motivation.quote_key]
-        data[bot.config.motivation.author_key]
     except JSONDecodeError:
-        # unless decoding JSON fails
+        # ...unless decoding JSON fails
         bot.reply("Malformed API response. Try again later.")
         return plugin.NOLIMIT
 
-    # this time for real
-    bot.say('"{}" — {}'.format(
-        data[bot.config.motivation.quote_key],
-        data[bot.config.motivation.author_key]
-    ))
+    if type(data) == list and len(data) == 1:
+        # minimize likelihood of needing full-on JMESPath expressions
+        # for APIs that return only one result, but wrap it in a list anyway
+        data = data[0]
+
+    if jmespath:
+        quote = bot.memory['motivation']['quote'].search(data)
+        author = bot.memory['motivation']['author'].search(data)
+    else:
+        quote = data.get(bot.config.motivation.quote_key)
+        author = data.get(bot.config.motivation.author_key)
+
+    if quote is None or author is None:
+        bot.reply(
+            "Please ask {} to double check my configuration. I can't find the quote."
+            .format(bot.config.core.owner)
+        )
+        return
+
+    # found results; output them
+    bot.say('"{}" — {}'.format(quote, author))
